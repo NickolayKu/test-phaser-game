@@ -1,0 +1,23 @@
+{
+  "name": "rpg-course",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "dev:server": "cd server && npm run dev"
+  },
+  "devDependencies": {
+    "phaser3-rex-plugins-types": "^0.2.0",
+    "typescript": "^5.0.2",
+    "vite": "^4.4.5"
+  },
+  "dependencies": {
+    "@esotericsoftware/spine-phaser-v3": "^4.2.88",
+    "phaser": "^3.70.0",
+    "phaser3-rex-plugins": "^1.80.16",
+    "socket.io-client": "^4.8.1"
+  }
+}
