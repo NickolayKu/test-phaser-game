@@ -1,6 +1,6 @@
 export class Entity extends Phaser.Physics.Arcade.Sprite {
     health: number;
-    constructor(scene: Phaser.Scene, x: number, y: number, texture: string, type?: string) {
+    constructor(scene: Phaser.Scene, x: number, y: number, texture: string) {
         super(scene, x, y, texture);
 
         this.scene = scene;
@@ -10,7 +10,6 @@ export class Entity extends Phaser.Physics.Arcade.Sprite {
         this.health = 100;
     }
 
-    
     protected createAnimation (
         key: string,
         textureKey: string,

@@ -1,4 +1,3 @@
-import { SPRITES } from '../utils/constants'
 import socket from '../utils/socket'
 import { Entity } from './entity'
 
@@ -19,8 +18,8 @@ export class Player extends Entity {
     spineKey: string
     atlasKey: string
 
-    constructor(scene: Phaser.Scene, x: number, y: number, texture: SpriteType, spineKey: string, atlasKey: string) {
-        super(scene, x, y, texture.base, SPRITES.PLAYER.base)
+    constructor(scene: Phaser.Scene, x: number, y: number, texture: SpriteType) {
+        super(scene, x, y, texture.base)
 
         const anims = this.scene.anims;
         const animsFrameRate = 9;

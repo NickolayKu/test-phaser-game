@@ -40,7 +40,7 @@ export class ElwynnForest extends Phaser.Scene {
     }
 
     private addOtherPlayer(player) {
-        const otherPlayer = new Player(this, player.x, player.y, SPRITES.PLAYER, '', '')
+        const otherPlayer = new Player(this, player.x, player.y, SPRITES.PLAYER)
         this.otherPlayers[player.id] = otherPlayer
     }
 
@@ -53,7 +53,7 @@ export class ElwynnForest extends Phaser.Scene {
         const groundLayer = map.createLayer(LAYERS.GROUND, tileset, 0, 0);
         const wallsLayer = map.createLayer(LAYERS.WALLS, tileset, 0, 0);
         
-        this.player = new Player(this, 400, 250, SPRITES.PLAYER, '', '');
+        this.player = new Player(this, 400, 250, SPRITES.PLAYER);
         this.boar = new Enemy(this, 600, 400, SPRITES.BOAR.base);
         this.boarSecond = new Enemy(this, 200, 300, SPRITES.BOAR.base);
         this.boar.setPlayer(this.player);
