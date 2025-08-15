@@ -1,12 +1,11 @@
 import { Enemy } from '../entities/enemy';
 import { Player } from '../entities/player';
 import { LAYERS, SIZES, SPRITES, TILES } from '../utils/constants';
+import { JoysticksController } from '../utils/joysticks';
 import socket from '../utils/socket';
-import VirtualJoystickPlugin from 'phaser3-rex-plugins/plugins/virtualjoystick-plugin.js';
 
 export class ElwynnForest extends Phaser.Scene {
     private uiCamera: Phaser.Cameras.Scene2D.Camera;
-    private joystick?: any;
     private player?: Player;
     private boar: Enemy;
     private worldZoom: number = this.calculateAutoZoom();
@@ -39,7 +38,7 @@ export class ElwynnForest extends Phaser.Scene {
     }
 
     private addOtherPlayer(player) {
-        const otherPlayer = new Player(this, player.x, player.y, SPRITES.PLAYER)
+        const otherPlayer = new Player(this, player.x, player.y, SPRITES.PLAYER, null);
         this.otherPlayers[player.id] = otherPlayer
     }
 
@@ -51,8 +50,12 @@ export class ElwynnForest extends Phaser.Scene {
         const tileset = map.addTilesetImage('Summer_Tiles', TILES.ELWYNN, SIZES.TILE, SIZES.TILE);
         const groundLayer = map.createLayer(LAYERS.GROUND, tileset, 0, 0);
         const wallsLayer = map.createLayer(LAYERS.WALLS, tileset, 0, 0);
+
+        // Creating joysticks controls
+        const joysticksController = new JoysticksController(this, this.player);
+        joysticksController.createJoysticks();
         
-        this.player = new Player(this, 400, 250, SPRITES.PLAYER);
+        this.player = new Player(this, 400, 250, SPRITES.PLAYER, joysticksController);
         this.boar = new Enemy(this, 600, 400, SPRITES.BOAR.base);
         this.boarSecond = new Enemy(this, 200, 300, SPRITES.BOAR.base);
         this.boar.setPlayer(this.player);
@@ -77,7 +80,13 @@ export class ElwynnForest extends Phaser.Scene {
 
         this.uiCamera.startFollow(this.cameras.main, true);
 
-        this.createUI();
+        // WASD управление
+        this.wasd = {
+            up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+            down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+            left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+            right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
+        };
 
         socket.emit('playerJoin', {
             x: this.player.x,
@@ -120,87 +129,6 @@ export class ElwynnForest extends Phaser.Scene {
         this.player.update(delta);
         this.boar.update();
         this.boarSecond.update();
-    }
-
-    private createUI() {
-        const mainCameraIgnoreList = [];
-        const joystickPlugin = this.plugins.get('rexVirtualJoystick') as VirtualJoystickPlugin;
-
-        // Джойстик для передвижения
-        this.joystick = joystickPlugin.add(this, {
-            x: 90,
-            y: window.innerHeight - 120,
-            radius: 55,
-            base: this.add.circle(0, 0, 55, 0x888888),
-            thumb: this.add.circle(0, 0, 28, 0xcccccc),
-            dir: '8dir',
-            fixed: true,
-        });
-        mainCameraIgnoreList.push(this.joystick.base, this.joystick.thumb);
-
-        // Джойстики для заклинаний и направления
-        const viewAngleJoystick = joystickPlugin.add(this, {
-            x: window.innerWidth - 65,
-            y: window.innerHeight - 100,
-            radius: 35,
-            base: this.add.circle(0, 0, 35, 0x888888),
-            thumb: this.add.circle(0, 0, 23, 0xcccccc),
-            dir: '8dir',
-            fixed: true,
-        });
-        mainCameraIgnoreList.push(viewAngleJoystick.base, viewAngleJoystick.thumb);
-
-        const spellJoystick1 = joystickPlugin.add(this, {
-            x: window.innerWidth - 150,
-            y: window.innerHeight - 88,
-            radius: 25,
-            base: this.add.circle(0, 0, 25, 0x888888),
-            thumb: this.add.circle(0, 0, 23, 0xcccccc),
-            dir: '8dir',
-            fixed: true,
-        });
-        mainCameraIgnoreList.push(spellJoystick1.base, spellJoystick1.thumb);
-        const spellJoystick2 = joystickPlugin.add(this, {
-            x: window.innerWidth - 128,
-            y: window.innerHeight - 157,
-            radius: 25,
-            base: this.add.circle(0, 0, 25, 0x888888),
-            thumb: this.add.circle(0, 0, 23, 0xcccccc),
-            dir: '8dir',
-            fixed: true,
-        });
-        mainCameraIgnoreList.push(spellJoystick2.base, spellJoystick2.thumb);
-        const spellJoystick3 = joystickPlugin.add(this, {
-            x: window.innerWidth - 55,
-            y: window.innerHeight - 184,
-            radius: 25,
-            base: this.add.circle(0, 0, 25, 0x888888),
-            thumb: this.add.circle(0, 0, 23, 0xcccccc),
-            dir: '8dir',
-            fixed: true,
-        });
-        mainCameraIgnoreList.push(spellJoystick3.base, spellJoystick3.thumb);
-        const spellJoystick4 = joystickPlugin.add(this, {
-            x: window.innerWidth - 55,
-            y: window.innerHeight - 258,
-            radius: 25,
-            base: this.add.circle(0, 0, 25, 0x888888),
-            thumb: this.add.circle(0, 0, 23, 0xcccccc),
-            dir: '8dir',
-            fixed: true,
-        });
-        mainCameraIgnoreList.push(spellJoystick4.base, spellJoystick4.thumb);
-        
-        // Указываем, что UI элементы должны отображаться только в UI камере
-        this.cameras.main.ignore(mainCameraIgnoreList);
-        
-        // WASD управление
-        this.wasd = {
-            up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-            down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-            left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-            right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
-        };
     }
 
     private calculateAutoZoom(): number {

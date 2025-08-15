@@ -1,43 +1,50 @@
-import socket from '../utils/socket'
-import { Entity } from './entity'
+import socket from '../utils/socket';
+import { Entity } from './entity';
 
 type SpriteType = {
-    [key: string]: string
-    base: string
-    fight?: string
-}
+    [key: string]: string;
+    base: string;
+    fight?: string;
+};
 
 export class Player extends Entity {
-    textureKey: string
-    private moveSpeed: number
-    enemies: Entity[]
-    target: Entity
-    private isAttacking: boolean
-    playerHealthBar: any
-    enemyHealthBar: Phaser.GameObjects.Graphics
-    spineKey: string
-    atlasKey: string
+    textureKey: string;
+    private moveSpeed: number;
+    enemies: Entity[];
+    target: Entity;
+    private isAttacking: boolean;
+    playerHealthBar: Phaser.GameObjects.Graphics;
+    enemyHealthBar: Phaser.GameObjects.Graphics;
+    private joysticksController: any;
+    private directionLine: Phaser.GameObjects.Graphics; // Линия направления взгляда
+    //private facing: 'right'; // left | right
 
-    constructor(scene: Phaser.Scene, x: number, y: number, texture: SpriteType) {
-        super(scene, x, y, texture.base)
+    constructor(scene: Phaser.Scene, x: number, y: number, texture: SpriteType, joysticksController: any) {
+        super(scene, x, y, texture.base);
 
         const anims = this.scene.anims;
         const animsFrameRate = 9;
-        this.moveSpeed = 20;
+        this.moveSpeed = 200; // Фиксированная скорость (пикселей в секунду)
         this.setSize(28, 32);
         this.setOffset(10, 16);
         this.setScale(0.9);
+        this.joysticksController = joysticksController;
 
-        this.setupKeysListeners()
-        this.createAnimation('down', texture.base, 0, 2, anims, animsFrameRate)
-        this.createAnimation('left', texture.base, 12, 14, anims, animsFrameRate)
-        this.createAnimation('right', texture.base, 24, 26, anims, animsFrameRate)
-        this.createAnimation('up', texture.base, 36, 38, anims, animsFrameRate)
-        this.createAnimation('fight', texture.fight, 3, 6, anims, animsFrameRate, 0)
-        this.drawPlayerHealthBar()
+        // Создаем линию направления взгляда
+        this.directionLine = this.scene.add.graphics();
+        this.directionLine.setDepth(10); // Чтобы линия была выше других объектов
+
+        this.setupKeysListeners();
+        this.createAnimation('down', texture.base, 0, 2, anims, animsFrameRate);
+        this.createAnimation('left', texture.base, 12, 14, anims, animsFrameRate);
+        this.createAnimation('right', texture.base, 24, 26, anims, animsFrameRate);
+        this.createAnimation('up', texture.base, 36, 38, anims, animsFrameRate);
+        this.createAnimation('fight', texture.fight, 3, 6, anims, animsFrameRate, 0);
+        this.drawPlayerHealthBar();
+
         this.on('animationcomplete', () => {
-            this.isAttacking = false
-        })
+            this.isAttacking = false;
+        });
     }
 
     private drawPlayerHealthBar() {
@@ -104,57 +111,59 @@ export class Player extends Entity {
         }
     }
 
-    update(delta: number) {
-        const wasd = (this.scene as any).wasd; // Получаем WASD-клавиши
-        const joystickKeys = (this.scene as any).joystick?.createCursorKeys(); // Получаем джойстик
-
+    update(_delta: number) {
         this.drawPlayerHealthBar();
 
-        // Объединяем все управления
-        const up = wasd.up.isDown || (joystickKeys && joystickKeys.up.isDown);
-        const down = wasd.down.isDown || (joystickKeys && joystickKeys.down.isDown);
-        const left = wasd.left.isDown || (joystickKeys && joystickKeys.left.isDown);
-        const right = wasd.right.isDown || (joystickKeys && joystickKeys.right.isDown);
-
-        // Рассчитываем скорость по осям
+        // 1. Движение через moveJoystick (фиксированная скорость)
+        const moveJoystick = this.joysticksController.moveJoystick;
         let velocityX = 0;
         let velocityY = 0;
 
-        if (up) velocityY = -1;
-        if (down) velocityY = 1;
-        if (left) velocityX = -1;
-        if (right) velocityX = 1;
+        if (moveJoystick && !this.isAttacking) {
+            // Если джойстик активен, двигаемся с фиксированной скоростью
+            if (moveJoystick.force > 0.1) { // Мертвая зона
+                const angleRad = moveJoystick.angle * Phaser.Math.DEG_TO_RAD;
+                // УБИРАЕМ умножение на deltaFactor, так как setVelocity уже его учитывает
+                velocityX = Math.cos(angleRad) * this.moveSpeed;
+                velocityY = Math.sin(angleRad) * this.moveSpeed;
+            }
 
-        // Нормализуем диагональное движение (чтобы скорость по диагонали не была больше)
-        if (velocityX !== 0 && velocityY !== 0) {
-            const length = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
-            velocityX /= length;
-            velocityY /= length;
-        }
+            // Применяем скорость
+            this.setVelocity(velocityX, velocityY);
 
-        // Применяем скорость
-        if (velocityX !== 0 || velocityY !== 0) {
-            socket.emit('playerMove', {
-                x: this.x,
-                y: this.y,
-            });
-
-            // Определяем анимацию
+            // Анимация движения
             if (Math.abs(velocityY) > Math.abs(velocityX)) {
                 this.play(velocityY > 0 ? 'down' : 'up', true);
             } else {
                 this.play(velocityX > 0 ? 'right' : 'left', true);
             }
 
-            this.setVelocity(
-                velocityX * delta * this.moveSpeed,
-                velocityY * delta * this.moveSpeed
-            );
+            // Отправка данных на сервер
+            socket.emit('playerMove', { x: this.x, y: this.y });
         } else if (this.isAttacking) {
             this.setVelocity(0, 0);
         } else {
             this.setVelocity(0, 0);
             this.stop();
+        }
+
+        // 2. Направление взгляда через viewAngleJoystick (синяя линия)
+        const viewAngleJoystick = this.joysticksController.spellJoysticksArr[0];
+        this.directionLine.clear(); // Очищаем предыдущую линию
+
+        if (viewAngleJoystick && viewAngleJoystick.force > 0.3) {
+            const angleRad = viewAngleJoystick.angle * Phaser.Math.DEG_TO_RAD;
+            const lineLength = 50; // Длина линии направления
+
+            // Рисуем линию от центра персонажа
+            this.directionLine.lineStyle(3, 0x3498db); // Синяя линия (толщина 3px)
+            this.directionLine.beginPath();
+            this.directionLine.moveTo(this.x, this.y);
+            this.directionLine.lineTo(
+                this.x + Math.cos(angleRad) * lineLength,
+                this.y + Math.sin(angleRad) * lineLength
+            );
+            this.directionLine.strokePath();
         }
     }
 }
