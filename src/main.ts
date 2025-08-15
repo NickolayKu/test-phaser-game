@@ -32,6 +32,7 @@ new Phaser.Game({
   },
   render: {
     pixelArt: true,
+    antialias: false,
+    roundPixels: true
   },
-  pixelArt: true,
 });

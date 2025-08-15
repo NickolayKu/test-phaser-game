@@ -38,25 +38,34 @@ export class ElwynnForest extends Phaser.Scene {
     }
 
     private addOtherPlayer(player) {
-        const otherPlayer = new Player(this, player.x, player.y, SPRITES.PLAYER, null);
+        const otherPlayer = new Player(this, player.x, player.y, SPRITES.PLAYER, null, null);
         this.otherPlayers[player.id] = otherPlayer
     }
 
     create () {
         this.input.addPointer(1);
         this.cameras.main.setZoom(this.worldZoom);
+        this.cameras.main.setRoundPixels(true);
         
         const map = this.make.tilemap({ key: "map" });
         
-        const tileset = map.addTilesetImage('Summer_Tiles', TILES.ELWYNN, SIZES.TILE, SIZES.TILE);
+        const tileset = map.addTilesetImage('Summer_Tiles', TILES.ELWYNN, SIZES.TILE, SIZES.TILE, 0, 1);
         const groundLayer = map.createLayer(LAYERS.GROUND, tileset, 0, 0);
         const wallsLayer = map.createLayer(LAYERS.WALLS, tileset, 0, 0);
 
         // Creating joysticks controls
         const joysticksController = new JoysticksController(this, this.player);
         joysticksController.createJoysticks();
+
+        // WASD управление
+        this.wasd = {
+            up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+            down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+            left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+            right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
+        };
         
-        this.player = new Player(this, 400, 250, SPRITES.PLAYER, joysticksController);
+        this.player = new Player(this, 400, 250, SPRITES.PLAYER, joysticksController, this.wasd);
         this.boar = new Enemy(this, 600, 400, SPRITES.BOAR.base);
         this.boarSecond = new Enemy(this, 200, 300, SPRITES.BOAR.base);
         this.boar.setPlayer(this.player);
@@ -68,6 +77,7 @@ export class ElwynnForest extends Phaser.Scene {
         this.uiCamera.setScroll(0, 0);
         this.uiCamera.setViewport(0, 0, window.innerWidth, window.innerHeight);
         this.uiCamera.ignore([groundLayer, wallsLayer, this.player, this.boar, this.boarSecond]); // Игнорируем игровые объекты
+        this.uiCamera.setRoundPixels(true);
         
         this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
         this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
@@ -80,14 +90,6 @@ export class ElwynnForest extends Phaser.Scene {
         wallsLayer.setCollisionByExclusion([-1]);
 
         this.uiCamera.startFollow(this.cameras.main, true);
-
-        // WASD управление
-        this.wasd = {
-            up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-            down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-            left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-            right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
-        };
 
         socket.emit('playerJoin', {
             x: this.player.x,
@@ -133,10 +135,10 @@ export class ElwynnForest extends Phaser.Scene {
     }
 
     private calculateAutoZoom(): number {
-        const MOBILE_BREAKPOINT = 850; // Ширина экрана, ниже которой считаем устройство мобильным
+        const MOBILE_BREAKPOINT = 900; // Ширина экрана, ниже которой считаем устройство мобильным
         const DESKTOP_BREAKPOINT = 1200; // Ширина экрана, выше которой применяем максимальный зум
-        const MIN_ZOOM = 1.0; // Минимальный зум (для мобильных)
-        const MAX_ZOOM = 1.5; // Максимальный зум (для десктопов)
+        const MIN_ZOOM = 1; // Минимальный зум (для мобильных)
+        const MAX_ZOOM = 2; // Максимальный зум (для десктопов)
         
         const screenWidth = window.innerWidth;
         
@@ -149,10 +151,5 @@ export class ElwynnForest extends Phaser.Scene {
         if (screenWidth >= DESKTOP_BREAKPOINT) {
             return MAX_ZOOM;
         }
-        
-        // Для промежуточных значений вычисляем пропорциональный зум
-        const range = DESKTOP_BREAKPOINT - MOBILE_BREAKPOINT;
-        const positionInRange = (screenWidth - MOBILE_BREAKPOINT) / range;
-        return MIN_ZOOM + (positionInRange * (MAX_ZOOM - MIN_ZOOM));
     }
 }

@@ -16,10 +16,11 @@ export class Player extends Entity {
     playerHealthBar: Phaser.GameObjects.Graphics;
     enemyHealthBar: Phaser.GameObjects.Graphics;
     private joysticksController: any;
+    private wasdController: any;
     private directionLine: Phaser.GameObjects.Graphics; // Линия направления взгляда
     //private facing: 'right'; // left | right
 
-    constructor(scene: Phaser.Scene, x: number, y: number, texture: SpriteType, joysticksController: any) {
+    constructor(scene: Phaser.Scene, x: number, y: number, texture: SpriteType, joysticksController: any, wasd: any) {
         super(scene, x, y, texture.base);
 
         const anims = this.scene.anims;
@@ -29,6 +30,7 @@ export class Player extends Entity {
         this.setOffset(10, 16);
         this.setScale(0.9);
         this.joysticksController = joysticksController;
+        this.wasdController = wasd;
 
         // Создаем линию направления взгляда
         this.directionLine = this.scene.add.graphics();
@@ -114,28 +116,48 @@ export class Player extends Entity {
     update(_delta: number) {
         this.drawPlayerHealthBar();
 
-        // 1. Движение через moveJoystick (фиксированная скорость)
+        // Движение через moveJoystick (фиксированная скорость)
         const moveJoystick = this.joysticksController.moveJoystick;
         let velocityX = 0;
         let velocityY = 0;
 
-        if (moveJoystick && !this.isAttacking) {
+        // Обработка WASD (если джойстик неактивен или его нет)
+        const isWASDPressed = 
+            this.wasdController.up.isDown || 
+            this.wasdController.down.isDown || 
+            this.wasdController.left.isDown || 
+            this.wasdController.right.isDown;
+
+        if ((moveJoystick && !this.isAttacking) || (isWASDPressed && !this.isAttacking)) {
             // Если джойстик активен, двигаемся с фиксированной скоростью
             if (moveJoystick.force > 0.1) { // Мертвая зона
                 const angleRad = moveJoystick.angle * Phaser.Math.DEG_TO_RAD;
-                // УБИРАЕМ умножение на deltaFactor, так как setVelocity уже его учитывает
                 velocityX = Math.cos(angleRad) * this.moveSpeed;
                 velocityY = Math.sin(angleRad) * this.moveSpeed;
+            } else if (isWASDPressed) {
+                if (this.wasdController.up.isDown) velocityY -= this.moveSpeed;
+                if (this.wasdController.down.isDown) velocityY += this.moveSpeed;
+                if (this.wasdController.left.isDown) velocityX -= this.moveSpeed;
+                if (this.wasdController.right.isDown) velocityX += this.moveSpeed;
+                
+                // Нормализация скорости (чтобы при диагональном движении скорость не была выше)
+                if (velocityX !== 0 && velocityY !== 0) {
+                    const len = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
+                    velocityX = (velocityX / len) * this.moveSpeed;
+                    velocityY = (velocityY / len) * this.moveSpeed;
+                }
             }
 
             // Применяем скорость
             this.setVelocity(velocityX, velocityY);
 
             // Анимация движения
-            if (Math.abs(velocityY) > Math.abs(velocityX)) {
-                this.play(velocityY > 0 ? 'down' : 'up', true);
-            } else {
-                this.play(velocityX > 0 ? 'right' : 'left', true);
+            if (velocityX !== 0 || velocityY !== 0) {
+                if (Math.abs(velocityY) > Math.abs(velocityX)) {
+                    this.play(velocityY > 0 ? 'down' : 'up', true);
+                } else {
+                    this.play(velocityX > 0 ? 'right' : 'left', true);
+                }
             }
 
             // Отправка данных на сервер
@@ -147,7 +169,7 @@ export class Player extends Entity {
             this.stop();
         }
 
-        // 2. Направление взгляда через viewAngleJoystick (синяя линия)
+        // Направление взгляда через viewAngleJoystick (синяя линия)
         const viewAngleJoystick = this.joysticksController.spellJoysticksArr[0];
         this.directionLine.clear(); // Очищаем предыдущую линию
 
