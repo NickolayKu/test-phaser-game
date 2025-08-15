@@ -43,6 +43,7 @@ export class ElwynnForest extends Phaser.Scene {
     }
 
     create () {
+        this.input.addPointer(1);
         this.cameras.main.setZoom(this.worldZoom);
         
         const map = this.make.tilemap({ key: "map" });
